@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt')
 
 usersRouter.get('/', async (request, response, next) => {
     try {
-        const users = await User.find({})
+        const users = await User.find({}).populate('vans', { name: 1, imageUrl: 1 })
         response.json(users)
     } catch (error) {
         next(error)
@@ -13,7 +13,7 @@ usersRouter.get('/', async (request, response, next) => {
 
 usersRouter.get('/:id', async (request, response, next) => {
     try {
-        const user = await User.findById(request.params.id)
+        const user = await User.findById(request.params.id).populate('vans', { name: 1, imageUrl: 1 })
         if (!user) {
             response.sendStatus(404)
         }
@@ -36,7 +36,7 @@ usersRouter.post('/:id', async (request, response, next) => {
         }
 
         const passwordHash = await bcrypt.hash(password, saltrounds)
-        
+            .populate('vans', { name: 1, imageUrl: 1 })
         const userData = new User({
             username,
             name,
@@ -70,7 +70,7 @@ usersRouter.put('/:id', async (request, response, next) => {
         const savedUser = await User.findByIdAndUpdate(
             request.params.id,
             userData,
-            {new: true}
+            { new: true }
         )
         response.json(savedUser)
     } catch (error) {
