@@ -21,7 +21,7 @@ loginRouter.post('/', async (request, response, next) => {
             email: user.email
         }
         const token = jwt.sign(userObjectForToken, process.env.SECRET, { validFor: 60 * 60 })
-        response.status(201).json({ token })
+        response.status(201).json({ token, username: user.username, email: user.email })
     } catch (error) {
         next(error)
     }
