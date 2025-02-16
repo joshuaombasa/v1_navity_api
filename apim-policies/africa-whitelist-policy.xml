@@ -1,0 +1,78 @@
+<policies>
+  <inbound>
+    <base />
+
+    <!-- Whitelist only Africa (Using IP Filtering) -->
+    <choose>
+      <when condition="@(context.Request.IpAddress == '41.' || context.Request.IpAddress == '102.' || 
+                         context.Request.IpAddress == '105.' || context.Request.IpAddress == '196.')">
+        <!-- Allow African IP ranges -->
+      </when>
+      <otherwise>
+        <return-response>
+          <set-status code="403" reason="Forbidden"/>
+          <set-body>{"error": "Access Denied: API is only available in Africa."}</set-body>
+        </return-response>
+      </otherwise>
+    </choose>
+
+    <!-- Validate Subscription Key -->
+    <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Invalid API Key">
+      <required-claims>
+        <claim name="aud" match="all">your-api-client-id</claim>
+      </required-claims>
+    </validate-jwt>
+
+    <!-- Rate Limiting: Max 10 requests per minute -->
+    <rate-limit-by-key calls="10" renewal-period="60" counter-key="@(context.User.Id ?? "anonymous")" />
+
+    <!-- CORS Support -->
+    <cors allow-credentials="false">
+      <allowed-origins>
+        <origin>https://your-frontend.com</origin>
+        <origin>https://another-allowed-site.com</origin>
+      </allowed-origins>
+      <allowed-methods>
+        <method>GET</method>
+        <method>POST</method>
+      </allowed-methods>
+      <allowed-headers>
+        <header>Authorization</header>
+        <header>Content-Type</header>
+      </allowed-headers>
+    </cors>
+
+    <!-- Log request details to Event Hub -->
+    <log-to-eventhub logger-id="myEventHubLogger">
+      "API call from @(context.Request.IpAddress) to @(context.Request.Url) at @(DateTime.UtcNow)"
+    </log-to-eventhub>
+  </inbound>
+
+  <backend>
+    <base />
+    <!-- Forward the request to your GitHub-hosted API -->
+    <set-backend-service base-url="https://github.com/joshuaombasa/v1_navity_api" />
+  </backend>
+
+  <outbound>
+    <base />
+    <!-- Add a custom header to responses -->
+    <set-header name="X-Powered-By" exists-action="override">
+      <value>Azure API Management</value>
+    </set-header>
+  </outbound>
+
+  <on-error>
+    <base />
+    <!-- Retry failed requests up to 3 times with a 5-second delay -->
+    <retry count="3" interval="5">
+      <forward-request />
+    </retry>
+
+    <!-- Custom error message -->
+    <return-response>
+      <set-status code="500" reason="Internal Server Error"/>
+      <set-body>{"error": "Something went wrong. Please try again later."}</set-body>
+    </return-response>
+  </on-error>
+</policies>
